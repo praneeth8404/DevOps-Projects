@@ -6,12 +6,13 @@ INSTANCE_TYPE=$2
 KEY_NAME=$3                 
 SECURITY_GROUP_ID=$4
 SUBNET_ID=$5   
-INSTANCE_NAME=$6      
+INSTANCE_NAME=$6
+COUNT=$7
 
 # Create EC2 instance
 aws ec2 run-instances \
     --image-id "$AMI_ID" \
-    --count 1 \
+    --count $COUNT \
     --instance-type "$INSTANCE_TYPE" \
     --key-name "$KEY_NAME" \
     --security-group-ids "$SECURITY_GROUP_ID" \
