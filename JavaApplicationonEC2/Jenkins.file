@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+    environment {
+        SERVER_IP = '192.168.1.10' // Replace with your EC2 instance public IP or DNS
+        SSH_USER = 'ec2-user'     // Default user for Amazon Linux or the one specific to your instance
+        APP_DIR = '/opt/myapp'
+        JAR_FILE = 'myapp.jar'
+        PEM_FILE = '/path/to/your-key.pem' // Path to your private key for SSH authentication
+    }
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/your-repo/myapp.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage('Deploy Artifact') {
+            steps {
+                sh """
+                scp -i ${PEM_FILE} target/${JAR_FILE} ${SSH_USER}@${SERVER_IP}:${APP_DIR}/
+                """
+            }
+        }
+        stage('Restart Application') {
+            steps {
+                sh """
+                ssh -i ${PEM_FILE} ${SSH_USER}@${SERVER_IP} "pkill -f ${JAR_FILE} || true"
+                ssh -i ${PEM_FILE} ${SSH_USER}@${SERVER_IP} "nohup java -jar ${APP_DIR}/${JAR_FILE} > /dev/null 2>&1 &"
+                """
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Deployment Successful!'
+        }
+        failure {
+            echo 'Deployment Failed!'
+        }
+    }
+}
