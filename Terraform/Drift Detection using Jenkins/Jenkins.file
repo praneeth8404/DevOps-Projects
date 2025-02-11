@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+    environment {
+        AWS_ACCESS_KEY_ID = credentials('aws-access-key')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+    }
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git url: 'https://github.com/your-repo/terraform-code.git', branch: 'main'
+            }
+        }
+        stage('Initialize Terraform') {
+            steps {
+                sh '''
+                terraform init
+                '''
+            }
+        }
+        stage('Check for Drift') {
+            steps {
+                script {
+                    def status = sh(script: '''
+                        terraform plan -detailed-exitcode > plan.log
+                        exit $?
+                    ''', returnStatus: true)
+
+                    if (status == 2) {
+                        echo "⚠️ Drift detected!"
+                        sh '''
+                        terraform show -json > drift.json
+                        curl -X POST -H "Content-Type: application/json" --data @drift.json https://your-webhook-url
+                        '''
+                        error("Terraform drift detected!")  // Fails the build
+                    } else {
+                        echo "✅ No drift detected."
+                    }
+                }
+            }
+        }
+    }
+}
